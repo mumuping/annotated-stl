@@ -114,3 +114,8 @@ STL 算法要求区间左闭右开，且能够支持 increment 操作。每一�
 
 具体分析见 [\<stl_numeric.h>](Numeric/stl_numeric.h)
 
+### 基本算法 <stl_algobase.h>
+
+其中包含的函数有：iter_swap、swap、min、max、copy（如果 copy 的类型是 trivial 类型，如 char int long 等，则调用的是 memmove，如果是 input_iterator 则使用的是 first!=last 进行比较，如果是 random_iterator 则使用的是 distance: n>0 判断，显然 random_iterator 的速度更快）、copy_backward、copy_n（返回的是 pair（拷贝后的源地址和目的地址））、fill、fill_n、mismatch（返回的是 pair（区间 1 和区间 2 第一个不匹配的地方，注意要检查是否到达了迭代器 end））、equal、lexicographical_compare（如果类型是 trivial 类型，则调用 memcmp）、lexicographical_compare_3way（返回 3 值结果，-1 表示第一个区间比第二个区间小，0 表示两个区间相等，1 表示第一个区间大于第二个区间）
+
+<stl_algobase.h> 中定义了基本算法，其他算法定义在 <stl_algo.h> 中。
