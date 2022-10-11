@@ -119,3 +119,19 @@ STL 算法要求区间左闭右开，且能够支持 increment 操作。每一�
 其中包含的函数有：iter_swap、swap、min、max、copy（如果 copy 的类型是 trivial 类型，如 char int long 等，则调用的是 memmove，如果是 input_iterator 则使用的是 first!=last 进行比较，如果是 random_iterator 则使用的是 distance: n>0 判断，显然 random_iterator 的速度更快）、copy_backward、copy_n（返回的是 pair（拷贝后的源地址和目的地址））、fill、fill_n、mismatch（返回的是 pair（区间 1 和区间 2 第一个不匹配的地方，注意要检查是否到达了迭代器 end））、equal、lexicographical_compare（如果类型是 trivial 类型，则调用 memcmp）、lexicographical_compare_3way（返回 3 值结果，-1 表示第一个区间比第二个区间小，0 表示两个区间相等，1 表示第一个区间大于第二个区间）
 
 <stl_algobase.h> 中定义了基本算法，其他算法定义在 <stl_algo.h> 中。
+
+### set 相关算法 <algorithm>
+
+STL 一共提供了五种与 set 相关的算法：包含 includes、并集 union、交集 intersection、差集 difference、对称差集 symmetric difference（它们都有两种版本，一种是使用的默认 '<'，另一种是使用用户自己提供的 comp（**注意不要擅自改为 <=，可能会原本的答案并不一样**））。
+
+**注意这四种算法所接受的 set 必须是有序区间（sorted range），也就是说，它们可以接受 set 和 multiset，而不能接受 hash_set 和 hash_multiset，当然它们也可以接受 sorted 的 array 等。**
+
+includes：`bool includes(_InputIter1 __first1, _InputIter1 __last1, _InputIter2 __first2, _InputIter2 __last2)`（区间 1 是否含有区间 2 中的所有元素。）
+
+set_union（stable）: 构造 s1 和 s2 的并集。由于 s1 和 s2 内的每个元素都不唯一，因此如果某个值在 s1 出现 n 次，在 s2 出现 m 次，那么该值在输出区间中会出现 max(m,n) 次，其中 n 个来自 s1，其余来自 s2。
+
+set_intersection（stable）：构造 s1 和 s2 的交集。由于 s1 和 s2 内的每个元素都不唯一，因此如果某个值在 s1 出现 n 次，在 s2 出现 m 次，那么该值在输出区间中会出现 min(m,n) 次，且全部来自 s1。
+
+set_difference（stable）：构造 s1 和 s2 的差集（s1 有而 s2 没有的元素）。由于 s1 和 s2 内的每个元素都不唯一，因此如果某个值在 s1 出现 n 次，在 s2 出现 m 次，那么该值在输出区间中会出现 max(n-m,0) 次，且全部来自 s1。
+
+set_symmetric_difference（stable）：构造 s1 和 s2 的对称差集（(s1-s2)∪(s2-s1)）。由于 s1 和 s2 内的每个元素都不唯一，因此如果某个值在 s1 出现 n 次，在 s2 出现 m 次，那么该值在输出区间中会出现 |n-m| 次，如果 n > m，输出区间内的最后 n - m 个元素将由 s1 复制而来，如果 n < m，则输出区间内的最后 m - n 个元素由 s2 复制而来。
