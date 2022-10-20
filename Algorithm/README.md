@@ -224,12 +224,20 @@ heap 相关算法，如 make_heap push_heap pop_heap sort_heap 被定义在 [\<s
 
 - random_shuffle：将 [first, last) 中的元素重新排列，该排列组合是从 n! 个总的排列组合中均匀随机选取的。该函数会利用到随机数生成器（默认是 lrand48 或者 c 标准库 rand，当然用户也可以指定，注意若用户指定随机数生成器，那么 random_shuffle 是引用传递该生成器的，这是因为随机数生成器有一个重要特性：它拥有局部状态（local state），每次被调用时它的内部状态都会改变，从而保证生成的数足够随机。
 
-- partial_sort：将 [first, last) 中的 middle-first 个最小元素以递增的方式放在 [first, middle) 中，其余元素放在后面，并不保证之间的顺序，用户可指定 comp 仿函数。（该函数其实是利用了最大堆，并没有对整个序列排序。迭代器类型必须为 random access iterator）
+- partial_sort：将 [first, last) 中的 middle-first 个最小元素以递增的方式放在 [first, middle) 中，其余元素放在后面，并不保证之间的顺序，用户可指定 comp 仿函数。（该函数其实是利用了**最大堆排序**，并没有对整个序列排序。迭代器类型必须为 random access iterator）
 
 - partial_sort_copy：与上述函数逻辑大致相同，只是将结果拷贝到 [result_first, result_last) 中，用户可指定 comp 函数。
 
 - 下面开始着重介绍 sort 算法：
   - 首先需要注意的一点是 sort 算法接受两个 **random access iterator**。在 STL 中所有关联容器都拥有自动排序功能（底层容器采用 rb-tree 的），不需要用到该算法，而序列式容器中的 stack、queue、priority_queue 由于特别的出入口，不允许用户对其进行排序，剩下的 vector、deque 是 random access iterator，而 list、slist 迭代器属于 forward iterator，不能应用于 sort 算法，而要使用它们自己的成员函数 sort。
-  - 在 STL 中的 sort 算法，数据量大时会采用 quick sort，分段递归排序，而分段后的数据量小于某个阈值，为避免 quick sort 递归调用所带来的过大额外负荷（overhead），就改用 insertion sort，如果递归层次过深，还会改用 heap sort。
+  - 在 STL 中的 sort 算法，数据量大时会采用 quick sort，分段递归排序，而分段后的数据量小于某个阈值（具体多少无定论，实际的最佳值因设备而异，在此版本的 STL 中设定的是 16 个元素，即若 [first,last) 中的元素个数大于 16 个，则允许进行 partition，否则认为元素小于16个的子序列已经有相当程度的排序了，因此将调用插入排序），为避免 quick sort 递归调用所带来的过大额外负荷（overhead），就改用 insertion sort，如果递归层次过深，还会改用 heap sort。
   - insertion sort：插入排序
-  
+  - quick sort：快速排序（**由于快速排序的效率很大程度上依赖于 pivot 点的随机性，因此在快速排序中最稳当的方式是取整个序列的头、中间、尾三个位置的元素，以其中间值（median）作为 pivot。Daivd R.Musser 在 1996 年提出了一种混合式排序算法：Introspective Sorting，即 IntroSort，其行为在大部分情况下几乎与三点中值完全相同。但当 partition 行为有恶化为二次行为的倾向时（其实就是限制递归调用的层数），能够自我侦测，转而改用 heap sort，使其效率在 O(nlogn)。这又比一开始使用 heap sort 又好**）
+  - final insertion sort：当某个大小下的序列处于“几近排序但尚未完成”状态时，一般认为插入排序的效果比较好。因此最后会再以一次插入排序将这些“几近排序但尚未完成”的子序列做一次完整的排序。
+  - stable_sort：基于**归并排序**，这里不多介绍，具体可以看源文件，很好理解。
+
+- inplace_merge（stable）：如果两个连接在一起的序列 [first, middle) 和 [middle, last) 都已排序，那么该函数可以将它们合并成一个最终有序的序列。
+
+- nth_element：该函数会重新排列 [first, last)，使迭代器 nth 所指的元素，与整个 [first, last) 完整排序后，同一位置的元素同值，并保证 [nth, last) 内没有任何一个元素不大于 [first, nth) 内的元素。
+
+- merge_sort：归并排序（尽管时间复杂度是 O(nlogn)，但需要额外的存储空间，以及数据复制也需要耗时，因此效率比不上快速排序）。
