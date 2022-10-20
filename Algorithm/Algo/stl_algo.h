@@ -44,7 +44,7 @@ __STL_BEGIN_NAMESPACE
 #endif
 
 // __median (an extension, not present in the C++ standard).
-
+// 取 a、b、c 三个元素中的中间值
 template <class _Tp>
 inline const _Tp& __median(const _Tp& __a, const _Tp& __b, const _Tp& __c) {
   __STL_REQUIRES(_Tp, _LessThanComparable);
@@ -63,6 +63,7 @@ inline const _Tp& __median(const _Tp& __a, const _Tp& __b, const _Tp& __c) {
     return __b;
 }
 
+// 用户指定 comp 仿函数
 template <class _Tp, class _Compare>
 inline const _Tp&
 __median(const _Tp& __a, const _Tp& __b, const _Tp& __c, _Compare __comp) {
@@ -1351,24 +1352,25 @@ inline _ForwardIter stable_partition(_ForwardIter __first,
                                   __DISTANCE_TYPE(__first));
 }
 
+// 快速排序中的 partition
 template <class _RandomAccessIter, class _Tp>
 _RandomAccessIter __unguarded_partition(_RandomAccessIter __first, 
                                         _RandomAccessIter __last, 
                                         _Tp __pivot) 
 {
   while (true) {
-    while (*__first < __pivot)
+    while (*__first < __pivot)  // 从前往后找，找到大于等于 pivot 的元素
       ++__first;
     --__last;
-    while (__pivot < *__last)
+    while (__pivot < *__last)   // 从后往前找，找到小于等于 pivot 的元素
       --__last;
-    if (!(__first < __last))
+    if (!(__first < __last))    // 若中间相遇则返回
       return __first;
-    iter_swap(__first, __last);
-    ++__first;
+    iter_swap(__first, __last); // 交换
+    ++__first;                  // 交换后在往后移动 1
   }
 }    
-
+// 用户指定 comp 仿函数
 template <class _RandomAccessIter, class _Tp, class _Compare>
 _RandomAccessIter __unguarded_partition(_RandomAccessIter __first, 
                                         _RandomAccessIter __last, 
@@ -1387,6 +1389,8 @@ _RandomAccessIter __unguarded_partition(_RandomAccessIter __first,
   }
 }
 
+// IntroSort 算法中的阈值，限制某段区间 [first, last) 的长度
+// last-first > __stl_threshold 则允许进行 partition
 const int __stl_threshold = 16;
 
 // sort() and its auxiliary functions. 
@@ -1464,8 +1468,8 @@ void __insertion_sort(_RandomAccessIter __first,
     __linear_insert(__first, __i, __VALUE_TYPE(__first), __comp);
 }
 
-// 将 [first, last) 中的元素依次往前插入到正确位置
-// 注意该函数并未执行边界检查，因此一定要保证存在正确位置
+// 将 [first, last) 中的元素依次往前插入到正确的位置
+// 注意该函数并未执行边界检查，因此一定要保证存在正确的位置
 template <class _RandomAccessIter, class _Tp>
 void __unguarded_insertion_sort_aux(_RandomAccessIter __first, 
                                     _RandomAccessIter __last, _Tp*) {
@@ -1497,10 +1501,13 @@ inline void __unguarded_insertion_sort(_RandomAccessIter __first,
                                  __comp);
 }
 
+// 对已经有一定程度排序的，但未完全排序好的序列进行最后的插入排序
 template <class _RandomAccessIter>
 void __final_insertion_sort(_RandomAccessIter __first, 
                             _RandomAccessIter __last) {
-  if (__last - __first > __stl_threshold) {
+  // 如果序列长度大于 16，则分成两段进行处理
+  // 一段长度为 16，另一段为剩下的长度
+  if (__last - __first > __stl_threshold) {     
     __insertion_sort(__first, __first + __stl_threshold);
     __unguarded_insertion_sort(__first + __stl_threshold, __last);
   }
@@ -1508,6 +1515,7 @@ void __final_insertion_sort(_RandomAccessIter __first,
     __insertion_sort(__first, __last);
 }
 
+// 指定 comp 仿函数
 template <class _RandomAccessIter, class _Compare>
 void __final_insertion_sort(_RandomAccessIter __first, 
                             _RandomAccessIter __last, _Compare __comp) {
@@ -1519,6 +1527,8 @@ void __final_insertion_sort(_RandomAccessIter __first,
     __insertion_sort(__first, __last, __comp);
 }
 
+// 找出 2^k<=n 的最大 k
+// 它是用来控制 quick sort 中 partition 恶化的情况
 template <class _Size>
 inline _Size __lg(_Size __n) {
   _Size __k;
@@ -1531,22 +1541,32 @@ void __introsort_loop(_RandomAccessIter __first,
                       _RandomAccessIter __last, _Tp*,
                       _Size __depth_limit)
 {
+  // __stl_threshold 是前面定义的一个全局变量
+  // 限制某段区间 [first, last) 的长度
+  // last-first > __stl_threshold 则允许进行 partition
   while (__last - __first > __stl_threshold) {
-    if (__depth_limit == 0) {
-      partial_sort(__first, __last, __last);
+    if (__depth_limit == 0) {                 // 递归深度到达预定值，则转向调用堆排序
+      partial_sort(__first, __last, __last);  // 堆排序
       return;
     }
     --__depth_limit;
+    // 先从区间中第一个、中间、最后一个元素中取出中间值作为 pivot
+    // 然后再进行 partition
+    // 此时 pivot 是处于序列中的正确位置
     _RandomAccessIter __cut =
       __unguarded_partition(__first, __last,
                             _Tp(__median(*__first,
                                          *(__first + (__last - __first)/2),
                                          *(__last - 1))));
+    // 对右半段进行递归调用
     __introsort_loop(__cut, __last, (_Tp*) 0, __depth_limit);
+    // 右半段递归调用结束后，再将 last 设置为 cut，
+    // 准备在下一个 while 循环中对左半段进行排序
     __last = __cut;
   }
 }
 
+// 可指定 comp 仿函数
 template <class _RandomAccessIter, class _Tp, class _Size, class _Compare>
 void __introsort_loop(_RandomAccessIter __first,
                       _RandomAccessIter __last, _Tp*,
@@ -1569,6 +1589,11 @@ void __introsort_loop(_RandomAccessIter __first,
   }
 }
 
+// 排序算法
+// 在 STL 中的 sort 算法，数据量大时会采用 quick sort，分段递归排序，
+// 而分段后的数据量小于某个阈值（这里是 16 个元素），
+// 为避免 quick sort 递归调用所带来的过大额外负荷（overhead），
+// 就改用 insertion sort，如果递归层次过深，还会改用 heap sort
 template <class _RandomAccessIter>
 inline void sort(_RandomAccessIter __first, _RandomAccessIter __last) {
   __STL_REQUIRES(_RandomAccessIter, _Mutable_RandomAccessIterator);
@@ -1578,7 +1603,13 @@ inline void sort(_RandomAccessIter __first, _RandomAccessIter __last) {
     __introsort_loop(__first, __last,
                      __VALUE_TYPE(__first),
                      __lg(__last - __first) * 2);
-    __final_insertion_sort(__first, __last);
+    // __introsort_loop 函数会将元素大致排序好
+    // 然后再调用插入排序对整体进行一次排序
+    __final_insertion_sort(__first, __last); 
+    /*
+     * 当某个大小下的序列处于“几近排序但尚未完成”状态时，一般认为插入排序的效果比较好。
+     * 因此最后会再以一次插入排序将这些“几近排序但尚未完成”的子序列做一次完整的排序
+     */
   }
 }
 
@@ -1599,7 +1630,7 @@ inline void sort(_RandomAccessIter __first, _RandomAccessIter __last,
 }
 
 // stable_sort() and its auxiliary functions.
-
+// stable_sort() 基于归并排序
 template <class _RandomAccessIter>
 void __inplace_stable_sort(_RandomAccessIter __first,
                            _RandomAccessIter __last) {
@@ -1967,19 +1998,22 @@ partial_sort_copy(_InputIter __first, _InputIter __last,
 }
 
 // nth_element() and its auxiliary functions.  
-
+// 该算法会重新排列 [first, last)，使迭代器 nth 所指的元素，与整个 [first, last) 完整排序后，
+// 同一位置的元素同值，并保证 [nth, last) 内没有任何一个元素不大于 [first, nth) 内的元素
 template <class _RandomAccessIter, class _Tp>
 void __nth_element(_RandomAccessIter __first, _RandomAccessIter __nth,
                    _RandomAccessIter __last, _Tp*) {
-  while (__last - __first > 3) {
+  while (__last - __first > 3) {    // 如果元素个数大于 3 
+    // 取 *first, *(__first + (__last - __first)/2, *(last-1) 的中间值
+    // 以此中间值划分 [first, last) 区间
     _RandomAccessIter __cut =
       __unguarded_partition(__first, __last,
                             _Tp(__median(*__first,
                                          *(__first + (__last - __first)/2),
                                          *(__last - 1))));
-    if (__cut <= __nth)
+    if (__cut <= __nth) // 说明 nth 在右边，设置 first 再循环
       __first = __cut;
-    else 
+    else                // 说明 nth 在左边，设置 last 再循环
       __last = __cut;
   }
   __insertion_sort(__first, __last);
@@ -1993,7 +2027,7 @@ inline void nth_element(_RandomAccessIter __first, _RandomAccessIter __nth,
                  _LessThanComparable);
   __nth_element(__first, __nth, __last, __VALUE_TYPE(__first));
 }
-
+// 指定 comp 函数
 template <class _RandomAccessIter, class _Tp, class _Compare>
 void __nth_element(_RandomAccessIter __first, _RandomAccessIter __nth,
                    _RandomAccessIter __last, _Tp*, _Compare __comp) {
@@ -2012,7 +2046,7 @@ void __nth_element(_RandomAccessIter __first, _RandomAccessIter __nth,
   }
   __insertion_sort(__first, __last, __comp);
 }
-
+// 指定 comp 函数
 template <class _RandomAccessIter, class _Compare>
 inline void nth_element(_RandomAccessIter __first, _RandomAccessIter __nth,
                         _RandomAccessIter __last, _Compare __comp) {
@@ -2345,14 +2379,16 @@ _OutputIter merge(_InputIter1 __first1, _InputIter1 __last1,
 
 // inplace_merge and its auxiliary functions. 
 
+// 对当合并两个子序列时，若无法申请足够的额外缓存空间时，会调用该函数
+// 递归分割
 template <class _BidirectionalIter, class _Distance>
 void __merge_without_buffer(_BidirectionalIter __first,
                             _BidirectionalIter __middle,
                             _BidirectionalIter __last,
                             _Distance __len1, _Distance __len2) {
-  if (__len1 == 0 || __len2 == 0)
+  if (__len1 == 0 || __len2 == 0) // 若其中一个子区间为空
     return;
-  if (__len1 + __len2 == 2) {
+  if (__len1 + __len2 == 2) {     // 若只有两个元素，则直接比大小
     if (*__middle < *__first)
       iter_swap(__first, __middle);
     return;
@@ -2362,9 +2398,11 @@ void __merge_without_buffer(_BidirectionalIter __first,
   _Distance __len11 = 0;
   _Distance __len22 = 0;
   if (__len1 > __len2) {
-    __len11 = __len1 / 2;
-    advance(__first_cut, __len11);
-    __second_cut = lower_bound(__middle, __last, *__first_cut);
+    __len11 = __len1 / 2;          // 将较长的子序列长度减半
+    advance(__first_cut, __len11); 
+    // 根据上面减半后子序列的最后一个元素，获得另一个子序列的部分长度
+    // 即让另一个子序列的最后一个元素不小于第一个子序列最后一个元素
+    __second_cut = lower_bound(__middle, __last, *__first_cut); 
     distance(__middle, __second_cut, __len22);
   }
   else {
@@ -2374,13 +2412,14 @@ void __merge_without_buffer(_BidirectionalIter __first,
     distance(__first, __first_cut, __len11);
   }
   _BidirectionalIter __new_middle
-    = rotate(__first_cut, __middle, __second_cut);
+    = rotate(__first_cut, __middle, __second_cut);  // 旋转，保证大小关系
   __merge_without_buffer(__first, __first_cut, __new_middle,
-                         __len11, __len22);
+                         __len11, __len22);         // 对左边递归调用
   __merge_without_buffer(__new_middle, __second_cut, __last, __len1 - __len11,
-                         __len2 - __len22);
+                         __len2 - __len22);         // 对右边递归调用
 }
 
+// 指定 comp 函数
 template <class _BidirectionalIter, class _Distance, class _Compare>
 void __merge_without_buffer(_BidirectionalIter __first,
                             _BidirectionalIter __middle,
@@ -2418,6 +2457,8 @@ void __merge_without_buffer(_BidirectionalIter __first,
                          __len2 - __len22, __comp);
 }
 
+// 将 [first, middle) 与 [middle, last) 旋转，即把 [middle, last) 移动到头部，把 [first, middle) 移动到尾部
+// buffer 表示需要使用到的缓存空间
 template <class _BidirectionalIter1, class _BidirectionalIter2,
           class _Distance>
 _BidirectionalIter1 __rotate_adaptive(_BidirectionalIter1 __first,
@@ -2428,19 +2469,21 @@ _BidirectionalIter1 __rotate_adaptive(_BidirectionalIter1 __first,
                                       _Distance __buffer_size) {
   _BidirectionalIter2 __buffer_end;
   if (__len1 > __len2 && __len2 <= __buffer_size) {
-    __buffer_end = copy(__middle, __last, __buffer);
-    copy_backward(__first, __middle, __last);
-    return copy(__buffer, __buffer_end, __first);
+    __buffer_end = copy(__middle, __last, __buffer);  // 先把 [middle, last) 拷贝到 buffer 中
+    copy_backward(__first, __middle, __last);         // 再把 [first, middle) 移动到 [somewhere, last)，即移到末尾
+    return copy(__buffer, __buffer_end, __first);     // 再把 buffer 中的数据移动到 [first, somewhere) 中
   }
-  else if (__len1 <= __buffer_size) {
+  else if (__len1 <= __buffer_size) {                 // 同上，只不过是将 [first, middle) 放在 buffer 中
     __buffer_end = copy(__first, __middle, __buffer);
     copy(__middle, __last, __first);
     return copy_backward(__buffer, __buffer_end, __last);
   }
   else
-    return rotate(__first, __middle, __last);
+    return rotate(__first, __middle, __last);         // buffer 小于区间 1 和区间 2 的大小时，还是调用 rotate
 }
 
+// 将 [first1, last1) 和 [first2, last2) 从后往前合并到 [i, result) 中
+// 这里 result 和 last1、last2 不应该重叠
 template <class _BidirectionalIter1, class _BidirectionalIter2,
           class _BidirectionalIter3>
 _BidirectionalIter3 __merge_backward(_BidirectionalIter1 __first1,
@@ -2469,7 +2512,7 @@ _BidirectionalIter3 __merge_backward(_BidirectionalIter1 __first1,
     }
   }
 }
-
+// 指定 comp 
 template <class _BidirectionalIter1, class _BidirectionalIter2,
           class _BidirectionalIter3, class _Compare>
 _BidirectionalIter3 __merge_backward(_BidirectionalIter1 __first1,
@@ -2500,13 +2543,16 @@ _BidirectionalIter3 __merge_backward(_BidirectionalIter1 __first1,
   }
 }
 
+// 根据 buffer 的大小来决定合并的方式
+// 如 buffer 为 0， 则将退化成 __merge_without_buffer 函数
 template <class _BidirectionalIter, class _Distance, class _Pointer>
 void __merge_adaptive(_BidirectionalIter __first,
                       _BidirectionalIter __middle, 
                       _BidirectionalIter __last,
                       _Distance __len1, _Distance __len2,
                       _Pointer __buffer, _Distance __buffer_size) {
-  if (__len1 <= __len2 && __len1 <= __buffer_size) {
+  // 如果 buffer 能够放下 [first, middle) 或者 [middle, last) 则将调用 merge 函数
+  if (__len1 <= __len2 && __len1 <= __buffer_size) {  
     _Pointer __buffer_end = copy(__first, __middle, __buffer);
     merge(__buffer, __buffer_end, __middle, __last, __first);
   }
@@ -2514,12 +2560,12 @@ void __merge_adaptive(_BidirectionalIter __first,
     _Pointer __buffer_end = copy(__middle, __last, __buffer);
     __merge_backward(__first, __middle, __buffer, __buffer_end, __last);
   }
-  else {
+  else {  // 如果 buffer 都放不下任意一个子区间，则将较长的子区间减半，然后经过调整后，重新递归调用
     _BidirectionalIter __first_cut = __first;
     _BidirectionalIter __second_cut = __middle;
     _Distance __len11 = 0;
     _Distance __len22 = 0;
-    if (__len1 > __len2) {
+    if (__len1 > __len2) {  //较长区间减半
       __len11 = __len1 / 2;
       advance(__first_cut, __len11);
       __second_cut = lower_bound(__middle, __last, *__first_cut);
@@ -2533,14 +2579,14 @@ void __merge_adaptive(_BidirectionalIter __first,
     }
     _BidirectionalIter __new_middle =
       __rotate_adaptive(__first_cut, __middle, __second_cut, __len1 - __len11,
-                        __len22, __buffer, __buffer_size);
+                        __len22, __buffer, __buffer_size);        // 旋转，保证大小关系
     __merge_adaptive(__first, __first_cut, __new_middle, __len11,
-                     __len22, __buffer, __buffer_size);
+                     __len22, __buffer, __buffer_size);           // 左边递归调用
     __merge_adaptive(__new_middle, __second_cut, __last, __len1 - __len11,
-                     __len2 - __len22, __buffer, __buffer_size);
+                     __len2 - __len22, __buffer, __buffer_size);  // 右边递归调用
   }
 }
-
+// 指定 comp 函数
 template <class _BidirectionalIter, class _Distance, class _Pointer,
           class _Compare>
 void __merge_adaptive(_BidirectionalIter __first, 
@@ -2585,23 +2631,24 @@ void __merge_adaptive(_BidirectionalIter __first,
   }
 }
 
+// inplace_merge 辅助函数
 template <class _BidirectionalIter, class _Tp, class _Distance>
 inline void __inplace_merge_aux(_BidirectionalIter __first,
                                 _BidirectionalIter __middle,
                                 _BidirectionalIter __last, _Tp*, _Distance*) {
   _Distance __len1 = 0;
-  distance(__first, __middle, __len1);
+  distance(__first, __middle, __len1);  // 子区间 1 长度
   _Distance __len2 = 0;
-  distance(__middle, __last, __len2);
+  distance(__middle, __last, __len2);   // 子区间 2 长度
 
-  _Temporary_buffer<_BidirectionalIter, _Tp> __buf(__first, __last);
-  if (__buf.begin() == 0)
-    __merge_without_buffer(__first, __middle, __last, __len1, __len2);
+  _Temporary_buffer<_BidirectionalIter, _Tp> __buf(__first, __last);  // 试图分配等长的缓存空间
+  if (__buf.begin() == 0) // 分配失败
+    __merge_without_buffer(__first, __middle, __last, __len1, __len2);// 调用无缓存的 merge 方案
   else
     __merge_adaptive(__first, __middle, __last, __len1, __len2,
-                     __buf.begin(), _Distance(__buf.size()));
+                     __buf.begin(), _Distance(__buf.size()));         // 调用有缓存的 merge 方案
 }
-
+// 指定 comp
 template <class _BidirectionalIter, class _Tp, 
           class _Distance, class _Compare>
 inline void __inplace_merge_aux(_BidirectionalIter __first,
@@ -2621,7 +2668,7 @@ inline void __inplace_merge_aux(_BidirectionalIter __first,
                      __buf.begin(), _Distance(__buf.size()),
                      __comp);
 }
-
+// inplace_merge
 template <class _BidirectionalIter>
 inline void inplace_merge(_BidirectionalIter __first,
                           _BidirectionalIter __middle,
@@ -2634,7 +2681,7 @@ inline void inplace_merge(_BidirectionalIter __first,
   __inplace_merge_aux(__first, __middle, __last,
                       __VALUE_TYPE(__first), __DISTANCE_TYPE(__first));
 }
-
+// 指定 comp
 template <class _BidirectionalIter, class _Compare>
 inline void inplace_merge(_BidirectionalIter __first,
                           _BidirectionalIter __middle,
