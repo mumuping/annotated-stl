@@ -160,6 +160,7 @@ struct logical_not : public unary_function<_Tp,bool>
   bool operator()(const _Tp& __x) const { return !__x; }
 };
 
+// 以下内容属于函数适配器，见 function adapter 节
 template <class _Predicate>
 class unary_negate
   : public unary_function<typename _Predicate::argument_type, bool> {
