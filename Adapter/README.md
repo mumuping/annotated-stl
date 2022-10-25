@@ -55,6 +55,12 @@ ostream_iterator<int> outite(cout, " ");
 copy(id.begin(), id.end(), outite);
 ```
 
-## 3. functor adapter
+## 3. function adapter
 
-对仿函数进行适配操作，包括系结 bind、否定 negate、组合 compose、以及对一般函数或成员函数的修饰。定义于 \<stl_function.h> 中。
+对仿函数进行适配操作，包括绑定 bind、否定 negate、组合 compose、以及对一般函数或成员函数的修饰。定义于 \<stl_function.h> 中。
+
+```cpp
+count_if(v.begin(), v.end(), bind2nd(less<int>(), 12));
+```
+
+具体分析见 [\<stl_function.h>](Function-Adapter/stl_function.h)
